@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+import sys
+import re
+import pexpect as exp
+import subprocess as sp
+from string import Template
+
+__author__ = 'auroux_l'
+
+
+if __name__ == "__main__":
+    import argparse
+    aparse = argparse.ArgumentParser(description='JetanimeDL main script')
+    aparse.add_argument(dest='template_adr', metavar='TMP_ADR', type=str, help='template address that containt ALL the download link')
+    aparse.add_argument(dest='begin_range', metavar='BEG_RANGE', type=int, help='starting number to iterate', default=None, nargs='?')
+    aparse.add_argument(dest='end_range', metavar='END_RANGE', type=int, help='ending number to iterate', default=None, nargs='?')
+    args = aparse.parse_args()
+
+    template_adr = args.template_adr
+    begin_range = args.begin_range
+    tmpl_valid = True
+    if begin_range is not None:
+        try:
+            s = template_adr.index('{idx}')
+        except ValueError as e:
+            tmpl_valid = False
+    if not tmpl_valid:
+        print("Your template must contain a {idx} placeholder")
+        sys.exit(1)
+    if begin_range is None:
+        begin_range = 0
+    end_range = args.end_range
+    if end_range is None:
+        end_range = begin_range
+    print("%s %s %s" % (template_adr, begin_range, end_range))
+    for it in range(begin_range, end_range + 1):
+        adr = template_adr.format(idx=it)
+        print("STEP %d" % it)
+        print(adr)
+        cmd = "youtube-dl '{0}'".format(adr)
+        child = exp.spawn(cmd, timeout=None)
+        child.expect([exp.EOF])
+        txt = str(child.before, 'ascii')
+        print(txt)
+        lstxt = txt.split("\r\n")
+        src = None
+        dst = None
+        for t in lstxt:
+            rex = "(\[generic\]\s+(?P<dst>\S*):\s+Requesting\s+header)|(\[download\]\s+Destination:\s+(?P<src>\S*))|(\[download\]\s+(?P<src2>\S*) has already been downloaded)|(?P<other>.*)"
+            pattern = re.compile(rex)
+            res = pattern.match(t)
+            dm = res.groupdict()
+            if dm['src'] is not None:
+                src = dm['src']
+            if dm['src2'] is not None:
+                src = dm['src2']
+            if dm['dst'] is not None:
+                dst = dm['dst']
+        cmd = "mv %s %s.avi" % (src, dst)
+        print(cmd)
+        sp.check_call(['mv', src, "%s.avi" % dst])
