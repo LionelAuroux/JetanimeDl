@@ -41,7 +41,7 @@ if __name__ == "__main__":
         cmd = "youtube-dl '{0}'".format(adr)
         child = exp.spawn(cmd, timeout=None)
         child.expect([exp.EOF])
-        txt = str(child.before, 'ascii')
+        txt = str(child.before, 'utf-8')
         print(txt)
         lstxt = txt.split("\r\n")
         src = None
